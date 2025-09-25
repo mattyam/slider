@@ -16,8 +16,8 @@ html, body {
   color: #e6eef8;
 }
 .wrap {
-  max-width: 980px;
-  margin: 2px auto;
+  max-width: 1000px;
+  margin: 2px 0;
   padding: 0;
 }
 
@@ -37,7 +37,7 @@ html, body {
 }
 .slide {
   min-width: 100%;
-  padding: 0; /* remove gap padding */
+  padding: 0;
   box-sizing: border-box;
 }
 .slide-inner {
@@ -92,7 +92,7 @@ html, body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.18);
+  background: rgba(210,210,210,0.8);
   cursor: pointer;
 }
 .dot.active {
@@ -136,6 +136,9 @@ const dotsWrap = document.getElementById('dots');
 
 let slides = [];
 let index = 1;
+let isDragging = false;
+let startX = 0;
+let prevTranslate = 0;
 
 // create slides
 function makeSlide(src, idx){
@@ -194,6 +197,36 @@ track.addEventListener('transitionend', ()=>{
   if(index === 0){ index = images.length; applyTranslate(false); }
   if(index === images.length+1){ index = 1; applyTranslate(false); }
   updateDots();
+});
+
+// --- drag support ---
+track.addEventListener('pointerdown', e=>{
+  isDragging=true;
+  startX = e.clientX;
+  prevTranslate = -index*track.clientWidth;
+  track.style.transition='none';
+  track.setPointerCapture(e.pointerId);
+});
+
+track.addEventListener('pointermove', e=>{
+  if(!isDragging) return;
+  const dx = e.clientX-startX;
+  track.style.transform = `translateX(${prevTranslate+dx}px)`;
+});
+
+track.addEventListener('pointerup', e=>{
+  if(!isDragging) return;
+  isDragging=false;
+  const dx = e.clientX-startX;
+  const threshold = track.clientWidth*0.2;
+  if(dx>threshold) index--;
+  else if(dx<-threshold) index++;
+  track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
+  applyTranslate();
+});
+
+track.addEventListener('pointercancel', e=>{
+  if(isDragging){ isDragging=false; applyTranslate(); }
 });
 
 buildCarousel();
