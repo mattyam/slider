@@ -17,7 +17,7 @@ html, body {
 }
 .wrap {
   max-width: 1000px;
-  margin: 0; /* align to top left */
+  margin: 0;
   padding: 0;
 }
 
@@ -136,12 +136,17 @@ const dotsWrap = document.getElementById('dots');
 
 let index = 1;
 let slides = [];
+let isDragging = false;
+let startX = 0;
+let currentTranslate = 0;
+let prevTranslate = 0;
+let animationID;
 
-// --- build slides with clones for infinite loop ---
+// --- create slides ---
 function makeSlide(src, idx){
-  const s = document.createElement('div'); s.className='slide';
-  const inner = document.createElement('div'); inner.className='slide-inner';
-  const img = document.createElement('img'); img.src=src; img.alt=`Slide ${idx+1}`;
+  const s=document.createElement('div'); s.className='slide';
+  const inner=document.createElement('div'); inner.className='slide-inner';
+  const img=document.createElement('img'); img.src=src; img.alt=`Slide ${idx+1}`;
   inner.appendChild(img); s.appendChild(inner);
   return s;
 }
@@ -165,13 +170,13 @@ function buildCarousel(){
     dotsWrap.appendChild(d);
   });
 
-  index = 1;
-  applyTranslate(false);
+  index=1;
+  setPosition();
   updateDots();
 }
 
 // --- update transform ---
-function applyTranslate(animate=true){
+function setPosition(animate=true){
   track.style.transition = animate ? 'transform .35s cubic-bezier(.2,.9,.2,1)' : 'none';
   track.style.transform = `translateX(${-index*100}%)`;
 }
@@ -179,33 +184,27 @@ function applyTranslate(animate=true){
 function updateDots(){
   const dots = Array.from(dotsWrap.children);
   dots.forEach(d=>d.classList.remove('active'));
-  const imgIndex = (index-1+images.length)%images.length;
+  const imgIndex=(index-1+images.length)%images.length;
   if(dots[imgIndex]) dots[imgIndex].classList.add('active');
 }
 
-function goTo(i){ index=i+1; applyTranslate(); updateDots(); }
+function goTo(i){ index=i+1; setPosition(); updateDots(); }
 
 // --- buttons ---
-nextBtn.addEventListener('click', ()=>{ index++; applyTranslate(); });
-prevBtn.addEventListener('click', ()=>{ index--; applyTranslate(); });
+nextBtn.addEventListener('click', ()=>{ index++; setPosition(); });
+prevBtn.addEventListener('click', ()=>{ index--; setPosition(); });
 
 // --- infinite loop ---
 track.addEventListener('transitionend', ()=>{
-  if(index===0){ index=images.length; applyTranslate(false); }
-  if(index===images.length+1){ index=1; applyTranslate(false); }
+  if(index===0){ index=images.length; setPosition(false); }
+  if(index===images.length+1){ index=1; setPosition(false); }
   updateDots();
 });
 
 // --- drag support ---
-let isDragging=false;
-let startX=0;
-let currentTranslate=0;
-let prevTranslate=0;
-let animationID;
-
-function setPosition(){
+function animation() {
   track.style.transform=`translateX(${currentTranslate}px)`;
-  if(isDragging) requestAnimationFrame(setPosition);
+  if(isDragging) requestAnimationFrame(animation);
 }
 
 track.addEventListener('pointerdown', e=>{
@@ -215,7 +214,7 @@ track.addEventListener('pointerdown', e=>{
   currentTranslate=prevTranslate;
   track.style.transition='none';
   track.setPointerCapture(e.pointerId);
-  animationID=requestAnimationFrame(setPosition);
+  requestAnimationFrame(animation);
 });
 
 track.addEventListener('pointermove', e=>{
@@ -227,33 +226,27 @@ track.addEventListener('pointermove', e=>{
 track.addEventListener('pointerup', e=>{
   if(!isDragging) return;
   isDragging=false;
-  cancelAnimationFrame(animationID);
   const dx=e.clientX-startX;
-  const threshold=track.offsetWidth*0.2;
-  if(dx>threshold) index--;
-  else if(dx<-threshold) index++;
-  track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
-  applyTranslate();
+  if(dx>track.offsetWidth*0.2) index--;
+  else if(dx<-track.offsetWidth*0.2) index++;
+  setPosition();
 });
 
 track.addEventListener('pointercancel', e=>{
   if(isDragging){
     isDragging=false;
-    cancelAnimationFrame(animationID);
-    applyTranslate();
+    setPosition();
   }
 });
 
-// touch events for mobile
+// mobile support
 track.addEventListener('touchstart', e=>track.dispatchEvent(new PointerEvent('pointerdown', e.touches[0])));
 track.addEventListener('touchmove', e=>track.dispatchEvent(new PointerEvent('pointermove', e.touches[0])));
 track.addEventListener('touchend', e=>track.dispatchEvent(new PointerEvent('pointerup', e.changedTouches[0])));
 track.addEventListener('touchcancel', e=>track.dispatchEvent(new PointerEvent('pointercancel', e.changedTouches[0])));
 
 buildCarousel();
-
-// --- handle window resize ---
-window.addEventListener('resize', ()=>applyTranslate(false));
+window.addEventListener('resize', ()=>setPosition(false));
 </script>
 </body>
 </html>
