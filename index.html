@@ -1,303 +1,178 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Infinite Rounded Slider + Lightbox</title>
-  <style>
-    :root{
-      --bg:#0f1724;
-      --accent:#5b8cff;
-      --btn-size:48px;
-      --gap:14px;
-    }
-    html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e6eef8}
-    .wrap{max-width:980px;margin:42px auto;padding:20px}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Slider Widget</title>
+<style>
+:root {
+  --accent:#5b8cff;
+  --btn-size:48px;
+  --gap:14px;
+}
+body, html {
+  margin:0; padding:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+}
+/* Carousel */
+.carousel {
+  position:relative; overflow:hidden; border-radius:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08));
+  user-select:none;
+}
+.track {
+  display:flex; transition:transform .35s cubic-bezier(.2,.9,.2,1);
+  will-change:transform; touch-action: pan-y;
+}
+.slide { min-width:100%; padding:var(--gap); box-sizing:border-box; }
+.slide-inner {
+  border-radius:14px; overflow:hidden; background:#111;
+  height:520px; display:flex; align-items:center; justify-content:center;
+}
+.slide-inner img { display:block; width:100%; height:100%; object-fit:cover; }
 
-    /* Carousel frame */
-    .carousel{
-      position:relative;
-      overflow:hidden;
-      border-radius:18px; /* rounded edges */
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08));
-      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
-      user-select:none;
-    }
-    .track{
-      display:flex;
-      transition:transform .35s cubic-bezier(.2,.9,.2,1);
-      will-change:transform;
-      touch-action: pan-y; /* allow vertical page scroll on touch */
-    }
-    .slide{
-      min-width:100%;
-      padding:var(--gap);
-      box-sizing:border-box;
-    }
-    .slide-inner{
-      border-radius:14px;
-      overflow:hidden;
-      background:#111;
-      height:520px; /* change as needed or make responsive */
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .slide-inner img{display:block;width:100%;height:100%;object-fit:cover}
+/* Buttons */
+.btn {
+  position:absolute; top:50%; transform:translateY(-50%);
+  width:var(--btn-size); height:var(--btn-size);
+  border-radius:50%; background:rgba(5,10,30,0.6);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.btn svg { width:20px; height:20px; fill:#fff; }
+.btn.left{ left:12px; } .btn.right{ right:12px; }
 
-    /* Round arrow buttons */
-    .btn{
-      position:absolute;top:50%;transform:translateY(-50%);
-      width:var(--btn-size);height:var(--btn-size);
-      border-radius:50%;background:rgba(5,10,30,0.6);
-      backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;
-      border:1px solid rgba(255,255,255,0.06);cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,0.6);
-    }
-    .btn svg{width:20px;height:20px;fill: #fff}
-    .btn.left{left:12px}
-    .btn.right{right:12px}
+/* Dots */
+.dots { display:flex; gap:8px; justify-content:center; padding:12px 0; }
+.dot { width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.18); cursor:pointer; }
+.dot.active { background:var(--accent); }
 
-    /* Dots */
-    .dots{display:flex;gap:8px;justify-content:center;padding:12px 0}
-    .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.18);cursor:pointer}
-    .dot.active{background:var(--accent)}
+/* Lightbox */
+.lightbox {
+  position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+  background:rgba(2,6,23,0.8); z-index:60; padding:30px;
+}
+.lightbox.open { display:flex; }
+.lightbox .carousel { max-width:1200px; width:100%; height:calc(100vh - 120px); }
+.controls-top { position:absolute; top:18px; left:18px; display:flex; gap:10px; }
+.close-btn { background:transparent; color:#fff; padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.06); cursor:pointer; }
 
-    /* Lightbox overlay */
-    .lightbox{
-      position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);z-index:60;padding:30px
-    }
-    .lightbox.open{display:flex}
-    .lightbox .carousel{max-width:1200px;width:100%;height:calc(100vh - 120px)}
-    .controls-top{position:absolute;top:18px;left:18px;display:flex;gap:10px;align-items:center}
-    .close-btn{background:transparent;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer}
-
-    /* Make slider responsive */
-    @media (max-width:800px){
-      .slide-inner{height:62vw}
-      .btn{width:40px;height:40px}
-    }
-  </style>
+/* Responsive */
+@media(max-width:800px){ .slide-inner{height:62vw;} .btn{width:40px;height:40px;} }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h2>Infinite Rounded Slider — drag or swipe, click to open lightbox</h2>
 
-    <div id="carousel" class="carousel" aria-roledescription="carousel">
-      <div id="track" class="track">
-        <!-- Slides populated by JS -->
-      </div>
+<div id="carousel" class="carousel">
+  <div id="track" class="track"></div>
+  <button class="btn left" id="prevBtn"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+  <button class="btn right" id="nextBtn"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></button>
+</div>
+<div id="dots" class="dots"></div>
 
-      <button class="btn left" id="prevBtn" aria-label="Previous">
-        <svg viewBox="0 0 24 24" focusable="false"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-      </button>
-      <button class="btn right" id="nextBtn" aria-label="Next">
-        <svg viewBox="0 0 24 24" focusable="false"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-      </button>
-    </div>
-
-    <div id="dots" class="dots" aria-hidden="true"></div>
+<div id="lightbox" class="lightbox">
+  <div class="controls-top"><button class="close-btn" id="closeLightbox">Close</button></div>
+  <div class="carousel"><div id="lb-track" class="track"></div>
+    <button class="btn left" id="lb-prev"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+    <button class="btn right" id="lb-next"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></button>
   </div>
-
-  <!-- Lightbox -->
-  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true">
-    <div class="controls-top">
-      <button class="close-btn" id="closeLightbox">Close</button>
-    </div>
-    <div class="carousel" style="width:90%;max-width:1400px">
-      <div id="lb-track" class="track"></div>
-      <button class="btn left" id="lb-prev" aria-label="Previous">
-        <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-      </button>
-      <button class="btn right" id="lb-next" aria-label="Next">
-        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-      </button>
-    </div>
-  </div>
+</div>
 
 <script>
-  // --- Configuration & sample images ---
-  const images = [
-    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Zzmgd3yVzs.png?v=1758567276',
-    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/MicrosoftFlightSimulator2024Screenshot2025.09.18-14.43.25.01.png?v=1758567276',
-    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_wfiAFbPbdU.png?v=1758567276',
-    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Vrg9tEe3Wx.png?v=1758567276',
-    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_pMcjTZrmA3.png?v=1758556386'
-  ];
+const images=[
+'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Zzmgd3yVzs.png?v=1758567276',
+'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/MicrosoftFlightSimulator2024Screenshot2025.09.18-14.43.25.01.png?v=1758567276',
+'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_wfiAFbPbdU.png?v=1758567276',
+'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Vrg9tEe3Wx.png?v=1758567276',
+'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_pMcjTZrmA3.png?v=1758556386'
+];
 
-  // DOM refs
-  const track = document.getElementById('track');
-  const carousel = document.getElementById('carousel');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const dotsWrap = document.getElementById('dots');
+const track=document.getElementById('track'), carousel=document.getElementById('carousel'),
+prevBtn=document.getElementById('prevBtn'), nextBtn=document.getElementById('nextBtn'),
+dotsWrap=document.getElementById('dots');
 
-  // Lightbox refs
-  const lightbox = document.getElementById('lightbox');
-  const lbTrack = document.getElementById('lb-track');
-  const closeLightbox = document.getElementById('closeLightbox');
-  const lbPrev = document.getElementById('lb-prev');
-  const lbNext = document.getElementById('lb-next');
+const lightbox=document.getElementById('lightbox'), lbTrack=document.getElementById('lb-track'),
+closeLightboxBtn=document.getElementById('closeLightbox'),
+lbPrev=document.getElementById('lb-prev'), lbNext=document.getElementById('lb-next');
 
-  // Utility to create slides
-  function makeSlide(src, idx){
-    const s = document.createElement('div'); s.className='slide';
-    const inner = document.createElement('div'); inner.className='slide-inner';
-    const img = document.createElement('img'); img.src=src; img.alt = `Slide ${idx+1}`;
-    inner.appendChild(img); s.appendChild(inner);
-    inner.addEventListener('click', ()=>openLightbox(idx));
-    return s;
-  }
+let index=1, isDragging=false, startX=0, prevTranslate=0, slides=[], lbIndex=1, lbSlides=[];
 
-  // Build carousel with clones
-  let slides = [];
-  function buildCarousel(){
-    track.innerHTML='';
-    const first = makeSlide(images[0],0);
-    const last = makeSlide(images[images.length-1], images.length-1);
-    track.appendChild(last.cloneNode(true));
-    images.forEach((src,i)=>track.appendChild(makeSlide(src,i)));
-    track.appendChild(first.cloneNode(true));
-    slides = Array.from(track.children);
+function makeSlide(src, idx){
+  const s=document.createElement('div'); s.className='slide';
+  const inner=document.createElement('div'); inner.className='slide-inner';
+  const img=document.createElement('img'); img.src=src; img.alt=`Slide ${idx+1}`;
+  inner.appendChild(img); s.appendChild(inner);
+  inner.addEventListener('click',()=>openLightbox(idx));
+  return s;
+}
 
-    // dots
-    dotsWrap.innerHTML='';
-    images.forEach((_,i)=>{
-      const d = document.createElement('div'); d.className='dot'; d.dataset.i=i;
-      d.addEventListener('click', ()=>goTo(i));
-      dotsWrap.appendChild(d);
-    });
-    updateDots();
-
-    index = 1;
-    applyTranslate(false);
-  }
-
-  function buildLightbox(){
-    lbTrack.innerHTML='';
-    const first = makeSlide(images[0],0);
-    const last = makeSlide(images[images.length-1], images.length-1);
-    lbTrack.appendChild(last.cloneNode(true));
-    images.forEach((src,i)=>lbTrack.appendChild(makeSlide(src,i)));
-    lbTrack.appendChild(first.cloneNode(true));
-    lbSlides = Array.from(lbTrack.children);
-    lbIndex = 1; applyLbTranslate(false);
-  }
-
-  // state
-  let index = 1;
-  let isDragging = false, startX=0, prevTranslate=0;
-  let lbIndex = 1, lbSlides = [];
-
-  // --- Helpers ---
-  function applyTranslate(animate=true){
-    if(!animate) track.style.transition='none';
-    else track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
-    track.style.transform = `translateX(${ -index * 100 }%)`;
-    if(!animate) requestAnimationFrame(()=>{ track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)'; });
-    updateDots();
-  }
-  function applyLbTranslate(animate=true){
-    if(!animate) lbTrack.style.transition='none';
-    else lbTrack.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
-    lbTrack.style.transform = `translateX(${ -lbIndex * 100 }%)`;
-    if(!animate) requestAnimationFrame(()=>{ lbTrack.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)'; });
-  }
-  function updateDots(){
-    const dots = Array.from(dotsWrap.children);
-    dots.forEach(d=>d.classList.remove('active'));
-    const imgIndex = (index-1+images.length)%images.length;
-    if(dots[imgIndex]) dots[imgIndex].classList.add('active');
-  }
-
-  function goTo(imgIndex){ index = imgIndex+1; applyTranslate(); }
-
-  // --- Buttons ---
-  nextBtn.addEventListener('click', ()=>{ index++; applyTranslate(); });
-  prevBtn.addEventListener('click', ()=>{ index--; applyTranslate(); });
-  lbNext.addEventListener('click', ()=>{ lbIndex++; applyLbTranslate(); });
-  lbPrev.addEventListener('click', ()=>{ lbIndex--; applyLbTranslate(); });
-
-  // --- Keyboard ---
-  document.addEventListener('keydown', e=>{
-    if(lightbox.classList.contains('open')){
-      if(e.key==='ArrowRight'){ lbIndex++; applyLbTranslate(); }
-      if(e.key==='ArrowLeft'){ lbIndex--; applyLbTranslate(); }
-      if(e.key==='Escape') closeLB();
-    } else {
-      if(e.key==='ArrowRight'){ index++; applyTranslate(); }
-      if(e.key==='ArrowLeft'){ index--; applyTranslate(); }
-    }
+function buildCarousel(){
+  track.innerHTML=''; slides=[];
+  track.appendChild(makeSlide(images[images.length-1],images.length-1).cloneNode(true));
+  images.forEach((src,i)=>track.appendChild(makeSlide(src,i)));
+  track.appendChild(makeSlide(images[0],0).cloneNode(true));
+  slides=Array.from(track.children);
+  dotsWrap.innerHTML='';
+  images.forEach((_,i)=>{
+    const d=document.createElement('div'); d.className='dot'; d.dataset.i=i;
+    d.addEventListener('click',()=>goTo(i)); dotsWrap.appendChild(d);
   });
+  index=1; applyTranslate(false); updateDots();
+}
 
-  // --- Lightbox ---
-  function openLightbox(imgIndex){
-    buildLightbox();
-    lightbox.classList.add('open');
-    lbIndex = imgIndex+1; applyLbTranslate(false);
-    document.body.style.overflow='hidden';
+function buildLightbox(){
+  lbTrack.innerHTML=''; lbSlides=[];
+  lbTrack.appendChild(makeSlide(images[images.length-1],images.length-1).cloneNode(true));
+  images.forEach((src,i)=>lbTrack.appendChild(makeSlide(src,i)));
+  lbTrack.appendChild(makeSlide(images[0],0).cloneNode(true));
+  lbSlides=Array.from(lbTrack.children); lbIndex=1; applyLbTranslate(false);
+}
+
+function applyTranslate(anim=true){ track.style.transition=anim?'transform .35s cubic-bezier(.2,.9,.2,1)':'none'; track.style.transform=`translateX(${-index*100}%)`; if(!anim) requestAnimationFrame(()=>{track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';}); updateDots(); }
+function applyLbTranslate(anim=true){ lbTrack.style.transition=anim?'transform .35s cubic-bezier(.2,.9,.2,1)':'none'; lbTrack.style.transform=`translateX(${-lbIndex*100}%)`; if(!anim) requestAnimationFrame(()=>{lbTrack.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';}); }
+
+function updateDots(){ const d=Array.from(dotsWrap.children); d.forEach(x=>x.classList.remove('active')); const imgIndex=(index-1+images.length)%images.length; if(d[imgIndex]) d[imgIndex].classList.add('active'); }
+function goTo(i){ index=i+1; applyTranslate(); }
+
+nextBtn.addEventListener('click',()=>{ index++; applyTranslate(); });
+prevBtn.addEventListener('click',()=>{ index--; applyTranslate(); });
+lbNext.addEventListener('click',()=>{ lbIndex++; applyLbTranslate(); });
+lbPrev.addEventListener('click',()=>{ lbIndex--; applyLbTranslate(); });
+
+document.addEventListener('keydown',e=>{
+  if(lightbox.classList.contains('open')){
+    if(e.key==='ArrowRight'){ lbIndex++; applyLbTranslate(); }
+    if(e.key==='ArrowLeft'){ lbIndex--; applyLbTranslate(); }
+    if(e.key==='Escape') closeLB();
+  }else{
+    if(e.key==='ArrowRight'){ index++; applyTranslate(); }
+    if(e.key==='ArrowLeft'){ index--; applyTranslate(); }
   }
-  function closeLB(){ lightbox.classList.remove('open'); document.body.style.overflow=''; }
-  closeLightbox.addEventListener('click', closeLB);
-  lightbox.addEventListener('click', e=>{ if(e.target===lightbox) closeLB(); });
+});
 
-  // --- Infinite loop handling ---
-  track.addEventListener('transitionend', ()=>{
-    if(index===0){ index=images.length; applyTranslate(false); }
-    else if(index===slides.length-1){ index=1; applyTranslate(false); }
-  });
-  lbTrack.addEventListener('transitionend', ()=>{
-    if(lbIndex===0){ lbIndex=images.length; applyLbTranslate(false); }
-    else if(lbIndex===lbSlides.length-1){ lbIndex=1; applyLbTranslate(false); }
-  });
+function openLightbox(i){ buildLightbox(); lightbox.classList.add('open'); lbIndex=i+1; applyLbTranslate(false); document.body.style.overflow='hidden'; }
+function closeLB(){ lightbox.classList.remove('open'); document.body.style.overflow=''; }
+closeLightboxBtn.addEventListener('click',closeLB);
+lightbox.addEventListener('click',e=>{if(e.target===lightbox) closeLB();});
 
-  // --- Dragging ---
-  function pointerDown(e, forLB=false){
-    e.preventDefault();
-    isDragging=true;
-    startX = getX(e);
-    if(forLB){ prevTranslate = -lbIndex * carousel.clientWidth; lbTrack.style.transition='none'; lbTrack.setPointerCapture?.(e.pointerId); }
-    else { prevTranslate = -index * carousel.clientWidth; track.style.transition='none'; track.setPointerCapture?.(e.pointerId); }
-  }
+track.addEventListener('transitionend',()=>{ if(index===0) index=images.length; else if(index===slides.length-1) index=1; applyTranslate(false); });
+lbTrack.addEventListener('transitionend',()=>{ if(lbIndex===0) lbIndex=images.length; else if(lbIndex===lbSlides.length-1) lbIndex=1; applyLbTranslate(false); });
 
-  function pointerMove(e, forLB=false){
-    if(!isDragging) return;
-    const dx = getX(e)-startX;
-    if(forLB) lbTrack.style.transform=`translateX(${ prevTranslate+dx }px)`;
-    else track.style.transform=`translateX(${ prevTranslate+dx }px)`;
-  }
+function pointerDown(e,forLB=false){ isDragging=true; startX=getX(e); if(forLB){ prevTranslate=-lbIndex*carousel.clientWidth; lbTrack.style.transition='none'; lbTrack.setPointerCapture?.(e.pointerId); } else { prevTranslate=-index*carousel.clientWidth; track.style.transition='none'; track.setPointerCapture?.(e.pointerId); } }
+function pointerMove(e,forLB=false){ if(!isDragging) return; const dx=getX(e)-startX; if(forLB) lbTrack.style.transform=`translateX(${prevTranslate+dx}px)`; else track.style.transform=`translateX(${prevTranslate+dx}px)`; }
+function pointerUp(e,forLB=false){ if(!isDragging) return; isDragging=false; const dx=getX(e)-startX; const t=(carousel.clientWidth||window.innerWidth)*0.2; if(forLB){ if(Math.abs(dx)>t) dx<0?lbIndex++:lbIndex--; applyLbTranslate(); } else { if(Math.abs(dx)>t) dx<0?index++:index--; applyTranslate(); } }
+function getX(e){ return (e.touches?e.touches[0].clientX:e.clientX)||e.clientX; }
 
-  function pointerUp(e, forLB=false){
-    if(!isDragging) return;
-    isDragging=false;
-    const dx = getX(e)-startX;
-    const threshold = (carousel.clientWidth||window.innerWidth)*0.2;
-    if(forLB){
-      if(Math.abs(dx)>threshold){ dx<0 ? lbIndex++ : lbIndex--; }
-      lbTrack.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
-      applyLbTranslate();
-    } else {
-      if(Math.abs(dx)>threshold){ dx<0 ? index++ : index--; }
-      track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
-      applyTranslate();
-    }
-  }
+track.addEventListener('pointerdown',e=>pointerDown(e,false));
+track.addEventListener('pointermove',e=>pointerMove(e,false));
+track.addEventListener('pointerup',e=>pointerUp(e,false));
+track.addEventListener('pointercancel',e=>pointerUp(e,false));
+lbTrack.addEventListener('pointerdown',e=>pointerDown(e,true));
+lbTrack.addEventListener('pointermove',e=>pointerMove(e,true));
+lbTrack.addEventListener('pointerup',e=>pointerUp(e,true));
+lbTrack.addEventListener('pointercancel',e=>pointerUp(e,true));
 
-  function getX(e){ return (e.touches?e.touches[0].clientX:e.clientX)||e.clientX; }
-
-  track.addEventListener('pointerdown', e=>pointerDown(e,false));
-  track.addEventListener('pointermove', e=>pointerMove(e,false));
-  track.addEventListener('pointerup', e=>pointerUp(e,false));
-  track.addEventListener('pointercancel', e=>pointerUp(e,false));
-
-  lbTrack.addEventListener('pointerdown', e=>pointerDown(e,true));
-  lbTrack.addEventListener('pointermove', e=>pointerMove(e,true));
-  lbTrack.addEventListener('pointerup', e=>pointerUp(e,true));
-  lbTrack.addEventListener('pointercancel', e=>pointerUp(e,true));
-
-  // --- Init ---
-  buildCarousel();
-
-  window.addEventListener('resize', ()=>{ applyTranslate(false); applyLbTranslate(false); });
+buildCarousel();
+window.addEventListener('resize',()=>{ applyTranslate(false); applyLbTranslate(false); });
 </script>
 </body>
 </html>
