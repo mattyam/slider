@@ -139,8 +139,8 @@ let index = 1;
 let isDragging = false;
 let startX = 0;
 let prevTranslate = 0;
+let isMoving = false; // prevent fast clicks
 
-// create slides
 function makeSlide(src, idx){
   const s = document.createElement('div'); s.className='slide';
   const inner = document.createElement('div'); inner.className='slide-inner';
@@ -149,7 +149,6 @@ function makeSlide(src, idx){
   return s;
 }
 
-// build carousel with clones
 function buildCarousel(){
   track.innerHTML='';
   const first = makeSlide(images[0],0);
@@ -161,7 +160,6 @@ function buildCarousel(){
 
   slides = Array.from(track.children);
 
-  // dots
   dotsWrap.innerHTML='';
   images.forEach((_,i)=>{
     const d = document.createElement('div'); d.className='dot'; d.dataset.i=i;
@@ -175,6 +173,7 @@ function buildCarousel(){
 }
 
 function applyTranslate(animate=true){
+  isMoving = true;
   track.style.transition = animate ? 'transform .35s cubic-bezier(.2,.9,.2,1)' : 'none';
   track.style.transform = `translateX(${-index*100}%)`;
 }
@@ -186,17 +185,32 @@ function updateDots(){
   if(dots[imgIndex]) dots[imgIndex].classList.add('active');
 }
 
-function goTo(i){ index = i+1; applyTranslate(); updateDots(); }
+function goTo(i){ 
+  if(isMoving) return;
+  index = i+1; 
+  applyTranslate(); 
+  updateDots(); 
+}
 
-// buttons
-nextBtn.addEventListener('click', ()=>{ index++; applyTranslate(); });
-prevBtn.addEventListener('click', ()=>{ index--; applyTranslate(); });
+// buttons with click-throttle
+nextBtn.addEventListener('click', ()=>{
+  if(isMoving) return;
+  index++; 
+  applyTranslate();
+});
+prevBtn.addEventListener('click', ()=>{
+  if(isMoving) return;
+  index--; 
+  applyTranslate();
+});
 
 // infinite loop
 track.addEventListener('transitionend', ()=>{
-  if(index === 0){ index = images.length; applyTranslate(false); }
-  if(index === images.length+1){ index = 1; applyTranslate(false); }
+  if(index === 0) index = images.length;
+  if(index === images.length+1) index = 1;
+  applyTranslate(false);
   updateDots();
+  isMoving = false;
 });
 
 // --- drag support ---
@@ -228,6 +242,12 @@ track.addEventListener('pointerup', e=>{
 track.addEventListener('pointercancel', e=>{
   if(isDragging){ isDragging=false; applyTranslate(); }
 });
+
+// allow drag with touch events
+track.addEventListener('touchstart', e=>track.dispatchEvent(new PointerEvent('pointerdown', e)));
+track.addEventListener('touchmove', e=>track.dispatchEvent(new PointerEvent('pointermove', e)));
+track.addEventListener('touchend', e=>track.dispatchEvent(new PointerEvent('pointerup', e)));
+track.addEventListener('touchcancel', e=>track.dispatchEvent(new PointerEvent('pointercancel', e)));
 
 buildCarousel();
 </script>
