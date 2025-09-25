@@ -17,7 +17,7 @@ html, body {
 }
 .wrap {
   max-width: 1000px;
-  margin: 2px 0;
+  margin: 0; /* align to top left */
   padding: 0;
 }
 
@@ -134,17 +134,14 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const dotsWrap = document.getElementById('dots');
 
-let slides = [];
 let index = 1;
-let isDragging = false;
-let startX = 0;
-let prevTranslate = 0;
-let isMoving = false; // prevent fast clicks
+let slides = [];
 
+// --- build slides with clones for infinite loop ---
 function makeSlide(src, idx){
   const s = document.createElement('div'); s.className='slide';
   const inner = document.createElement('div'); inner.className='slide-inner';
-  const img = document.createElement('img'); img.src=src; img.alt = `Slide ${idx+1}`;
+  const img = document.createElement('img'); img.src=src; img.alt=`Slide ${idx+1}`;
   inner.appendChild(img); s.appendChild(inner);
   return s;
 }
@@ -160,9 +157,10 @@ function buildCarousel(){
 
   slides = Array.from(track.children);
 
+  // dots
   dotsWrap.innerHTML='';
   images.forEach((_,i)=>{
-    const d = document.createElement('div'); d.className='dot'; d.dataset.i=i;
+    const d=document.createElement('div'); d.className='dot'; d.dataset.i=i;
     d.addEventListener('click', ()=>goTo(i));
     dotsWrap.appendChild(d);
   });
@@ -172,8 +170,8 @@ function buildCarousel(){
   updateDots();
 }
 
+// --- update transform ---
 function applyTranslate(animate=true){
-  isMoving = true;
   track.style.transition = animate ? 'transform .35s cubic-bezier(.2,.9,.2,1)' : 'none';
   track.style.transform = `translateX(${-index*100}%)`;
 }
@@ -185,54 +183,53 @@ function updateDots(){
   if(dots[imgIndex]) dots[imgIndex].classList.add('active');
 }
 
-function goTo(i){ 
-  if(isMoving) return;
-  index = i+1; 
-  applyTranslate(); 
-  updateDots(); 
-}
+function goTo(i){ index=i+1; applyTranslate(); updateDots(); }
 
-// buttons with click-throttle
-nextBtn.addEventListener('click', ()=>{
-  if(isMoving) return;
-  index++; 
-  applyTranslate();
-});
-prevBtn.addEventListener('click', ()=>{
-  if(isMoving) return;
-  index--; 
-  applyTranslate();
-});
+// --- buttons ---
+nextBtn.addEventListener('click', ()=>{ index++; applyTranslate(); });
+prevBtn.addEventListener('click', ()=>{ index--; applyTranslate(); });
 
-// infinite loop
+// --- infinite loop ---
 track.addEventListener('transitionend', ()=>{
-  if(index === 0) index = images.length;
-  if(index === images.length+1) index = 1;
-  applyTranslate(false);
+  if(index===0){ index=images.length; applyTranslate(false); }
+  if(index===images.length+1){ index=1; applyTranslate(false); }
   updateDots();
-  isMoving = false;
 });
 
 // --- drag support ---
+let isDragging=false;
+let startX=0;
+let currentTranslate=0;
+let prevTranslate=0;
+let animationID;
+
+function setPosition(){
+  track.style.transform=`translateX(${currentTranslate}px)`;
+  if(isDragging) requestAnimationFrame(setPosition);
+}
+
 track.addEventListener('pointerdown', e=>{
   isDragging=true;
-  startX = e.clientX;
-  prevTranslate = -index*track.clientWidth;
+  startX=e.clientX;
+  prevTranslate=-index*track.offsetWidth;
+  currentTranslate=prevTranslate;
   track.style.transition='none';
   track.setPointerCapture(e.pointerId);
+  animationID=requestAnimationFrame(setPosition);
 });
 
 track.addEventListener('pointermove', e=>{
   if(!isDragging) return;
-  const dx = e.clientX-startX;
-  track.style.transform = `translateX(${prevTranslate+dx}px)`;
+  const dx=e.clientX-startX;
+  currentTranslate=prevTranslate+dx;
 });
 
 track.addEventListener('pointerup', e=>{
   if(!isDragging) return;
   isDragging=false;
-  const dx = e.clientX-startX;
-  const threshold = track.clientWidth*0.2;
+  cancelAnimationFrame(animationID);
+  const dx=e.clientX-startX;
+  const threshold=track.offsetWidth*0.2;
   if(dx>threshold) index--;
   else if(dx<-threshold) index++;
   track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
@@ -240,16 +237,23 @@ track.addEventListener('pointerup', e=>{
 });
 
 track.addEventListener('pointercancel', e=>{
-  if(isDragging){ isDragging=false; applyTranslate(); }
+  if(isDragging){
+    isDragging=false;
+    cancelAnimationFrame(animationID);
+    applyTranslate();
+  }
 });
 
-// allow drag with touch events
-track.addEventListener('touchstart', e=>track.dispatchEvent(new PointerEvent('pointerdown', e)));
-track.addEventListener('touchmove', e=>track.dispatchEvent(new PointerEvent('pointermove', e)));
-track.addEventListener('touchend', e=>track.dispatchEvent(new PointerEvent('pointerup', e)));
-track.addEventListener('touchcancel', e=>track.dispatchEvent(new PointerEvent('pointercancel', e)));
+// touch events for mobile
+track.addEventListener('touchstart', e=>track.dispatchEvent(new PointerEvent('pointerdown', e.touches[0])));
+track.addEventListener('touchmove', e=>track.dispatchEvent(new PointerEvent('pointermove', e.touches[0])));
+track.addEventListener('touchend', e=>track.dispatchEvent(new PointerEvent('pointerup', e.changedTouches[0])));
+track.addEventListener('touchcancel', e=>track.dispatchEvent(new PointerEvent('pointercancel', e.changedTouches[0])));
 
 buildCarousel();
+
+// --- handle window resize ---
+window.addEventListener('resize', ()=>applyTranslate(false));
 </script>
 </body>
 </html>
