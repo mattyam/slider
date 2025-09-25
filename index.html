@@ -17,7 +17,7 @@ html, body {
 }
 .wrap {
   max-width: 1000px;
-  margin: 0;
+  margin: 2px 0;
   padding: 0;
 }
 
@@ -122,11 +122,11 @@ html, body {
 
 <script>
 const images = [
-  'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Zzmgd3yVzs.png?v=1758567276',
-  'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/MicrosoftFlightSimulator2024Screenshot2025.09.18-14.43.25.01.png?v=1758567276',
-  'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_wfiAFbPbdU.png?v=1758567276',
-  'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Vrg9tEe3Wx.png?v=1758567276',
-  'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_pMcjTZrmA3.png?v=1758556386'
+    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Zzmgd3yVzs.png?v=1758567276',
+    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/MicrosoftFlightSimulator2024Screenshot2025.09.18-14.43.25.01.png?v=1758567276',
+    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_wfiAFbPbdU.png?v=1758567276',
+    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_Vrg9tEe3Wx.png?v=1758567276',
+    'https://cdn.shopify.com/s/files/1/0055/5525/7434/files/FlightSimulator2024_pMcjTZrmA3.png?v=1758556386'
 ];
 
 const track = document.getElementById('track');
@@ -134,119 +134,142 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const dotsWrap = document.getElementById('dots');
 
-let index = 1;
 let slides = [];
+let index = 1;
 let isDragging = false;
 let startX = 0;
 let currentTranslate = 0;
 let prevTranslate = 0;
-let animationID;
+let isMoving = false; // prevents fast clicks
 
-// --- create slides ---
 function makeSlide(src, idx){
-  const s=document.createElement('div'); s.className='slide';
-  const inner=document.createElement('div'); inner.className='slide-inner';
-  const img=document.createElement('img'); img.src=src; img.alt=`Slide ${idx+1}`;
-  inner.appendChild(img); s.appendChild(inner);
-  return s;
+    const s = document.createElement('div');
+    s.className = 'slide';
+    const inner = document.createElement('div');
+    inner.className = 'slide-inner';
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = `Slide ${idx + 1}`;
+    inner.appendChild(img);
+    s.appendChild(inner);
+    return s;
 }
 
 function buildCarousel(){
-  track.innerHTML='';
-  const first = makeSlide(images[0],0);
-  const last = makeSlide(images[images.length-1], images.length-1);
+    track.innerHTML = '';
+    const first = makeSlide(images[0], 0);
+    const last = makeSlide(images[images.length - 1], images.length - 1);
 
-  track.appendChild(last.cloneNode(true));
-  images.forEach((src,i)=>track.appendChild(makeSlide(src,i)));
-  track.appendChild(first.cloneNode(true));
+    track.appendChild(last.cloneNode(true));
+    images.forEach((src, i) => track.appendChild(makeSlide(src, i)));
+    track.appendChild(first.cloneNode(true));
 
-  slides = Array.from(track.children);
+    slides = Array.from(track.children);
 
-  // dots
-  dotsWrap.innerHTML='';
-  images.forEach((_,i)=>{
-    const d=document.createElement('div'); d.className='dot'; d.dataset.i=i;
-    d.addEventListener('click', ()=>goTo(i));
-    dotsWrap.appendChild(d);
-  });
+    dotsWrap.innerHTML = '';
+    images.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        d.dataset.i = i;
+        d.addEventListener('click', () => goTo(i));
+        dotsWrap.appendChild(d);
+    });
 
-  index=1;
-  setPosition();
-  updateDots();
+    index = 1;
+    applyTranslate(false);
+    updateDots();
 }
 
-// --- update transform ---
-function setPosition(animate=true){
-  track.style.transition = animate ? 'transform .35s cubic-bezier(.2,.9,.2,1)' : 'none';
-  track.style.transform = `translateX(${-index*100}%)`;
+function applyTranslate(animate = true){
+    isMoving = true;
+    track.style.transition = animate ? 'transform .35s cubic-bezier(.2,.9,.2,1)' : 'none';
+    track.style.transform = `translateX(${-index * 100}%)`;
 }
 
 function updateDots(){
-  const dots = Array.from(dotsWrap.children);
-  dots.forEach(d=>d.classList.remove('active'));
-  const imgIndex=(index-1+images.length)%images.length;
-  if(dots[imgIndex]) dots[imgIndex].classList.add('active');
+    const dots = Array.from(dotsWrap.children);
+    dots.forEach(d => d.classList.remove('active'));
+    const imgIndex = (index - 1 + images.length) % images.length;
+    if(dots[imgIndex]) dots[imgIndex].classList.add('active');
 }
 
-function goTo(i){ index=i+1; setPosition(); updateDots(); }
+function goTo(i){
+    if(isMoving) return;
+    index = i + 1;
+    applyTranslate();
+    updateDots();
+}
 
-// --- buttons ---
-nextBtn.addEventListener('click', ()=>{ index++; setPosition(); });
-prevBtn.addEventListener('click', ()=>{ index--; setPosition(); });
+// buttons with click-throttle
+nextBtn.addEventListener('click', ()=>{
+    if(isMoving) return;
+    index++;
+    applyTranslate();
+});
+prevBtn.addEventListener('click', ()=>{
+    if(isMoving) return;
+    index--;
+    applyTranslate();
+});
 
-// --- infinite loop ---
+// infinite loop
 track.addEventListener('transitionend', ()=>{
-  if(index===0){ index=images.length; setPosition(false); }
-  if(index===images.length+1){ index=1; setPosition(false); }
-  updateDots();
+    if(index === 0) index = images.length;
+    if(index === images.length + 1) index = 1;
+    applyTranslate(false);
+    updateDots();
+    isMoving = false;
 });
 
 // --- drag support ---
-function animation() {
-  track.style.transform=`translateX(${currentTranslate}px)`;
-  if(isDragging) requestAnimationFrame(animation);
-}
+const dragStart = (e) => {
+    isDragging = true;
+    startX = e.clientX || e.touches[0].clientX;
+    prevTranslate = -index * track.clientWidth;
+    track.style.transition = 'none';
+    if (e.pointerId) {
+        track.setPointerCapture(e.pointerId);
+    }
+};
 
-track.addEventListener('pointerdown', e=>{
-  isDragging=true;
-  startX=e.clientX;
-  prevTranslate=-index*track.offsetWidth;
-  currentTranslate=prevTranslate;
-  track.style.transition='none';
-  track.setPointerCapture(e.pointerId);
-  requestAnimationFrame(animation);
-});
+const dragMove = (e) => {
+    if (!isDragging) return;
+    const currentX = e.clientX || e.touches[0].clientX;
+    currentTranslate = prevTranslate + (currentX - startX);
+    track.style.transform = `translateX(${currentTranslate}px)`;
+};
 
-track.addEventListener('pointermove', e=>{
-  if(!isDragging) return;
-  const dx=e.clientX-startX;
-  currentTranslate=prevTranslate+dx;
-});
+const dragEnd = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
 
-track.addEventListener('pointerup', e=>{
-  if(!isDragging) return;
-  isDragging=false;
-  const dx=e.clientX-startX;
-  if(dx>track.offsetWidth*0.2) index--;
-  else if(dx<-track.offsetWidth*0.2) index++;
-  setPosition();
-});
+    // Calculate which slide to snap to based on drag distance
+    const slideWidth = track.clientWidth;
+    const movedBy = currentTranslate - prevTranslate;
+    const dragDistanceInSlides = movedBy / slideWidth;
+    
+    // Determine the new index by rounding to the nearest full slide
+    index = Math.round(index - dragDistanceInSlides);
 
-track.addEventListener('pointercancel', e=>{
-  if(isDragging){
-    isDragging=false;
-    setPosition();
-  }
-});
+    // Ensure the index stays within the valid range for our looping logic
+    if (index === 0) index = images.length;
+    else if (index > images.length) index = 1;
 
-// mobile support
-track.addEventListener('touchstart', e=>track.dispatchEvent(new PointerEvent('pointerdown', e.touches[0])));
-track.addEventListener('touchmove', e=>track.dispatchEvent(new PointerEvent('pointermove', e.touches[0])));
-track.addEventListener('touchend', e=>track.dispatchEvent(new PointerEvent('pointerup', e.changedTouches[0])));
-track.addEventListener('touchcancel', e=>track.dispatchEvent(new PointerEvent('pointercancel', e.changedTouches[0])));
+    applyTranslate(); // Snap to the correct slide
+
+    if (e.pointerId) {
+        track.releasePointerCapture(e.pointerId);
+    }
+};
+
+// Use pointer events for unified mouse and touch handling
+track.addEventListener('pointerdown', dragStart);
+track.addEventListener('pointermove', dragMove);
+track.addEventListener('pointerup', dragEnd);
+track.addEventListener('pointercancel', dragEnd);
+track.addEventListener('pointerleave', dragEnd);
 
 buildCarousel();
-window.addEventListener('resize', ()=>setPosition(false));
 </script>
 </body>
 </html>
