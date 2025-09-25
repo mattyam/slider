@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Infinite Rounded Slider + Lightbox</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --accent:#5b8cff;
+      --btn-size:48px;
+      --gap:14px;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e6eef8}
+    .wrap{max-width:980px;margin:42px auto;padding:20px}
+
+    /* Carousel frame */
+    .carousel{
+      position:relative;
+      overflow:hidden;
+      border-radius:18px; /* rounded edges */
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08));
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      user-select:none;
+    }
+    .track{
+      display:flex;
+      transition:transform .35s cubic-bezier(.2,.9,.2,1);
+      will-change:transform;
+      touch-action: pan-y; /* allow vertical page scroll on touch */
+    }
+    .slide{
+      min-width:100%;
+      padding:var(--gap);
+      box-sizing:border-box;
+    }
+    .slide-inner{
+      border-radius:14px;
+      overflow:hidden;
+      background:#111;
+      height:520px; /* change as needed or make responsive */
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .slide-inner img{display:block;width:100%;height:100%;object-fit:cover}
+
+    /* Round arrow buttons */
+    .btn{
+      position:absolute;top:50%;transform:translateY(-50%);
+      width:var(--btn-size);height:var(--btn-size);
+      border-radius:50%;background:rgba(5,10,30,0.6);
+      backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;
+      border:1px solid rgba(255,255,255,0.06);cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,0.6);
+    }
+    .btn svg{width:20px;height:20px;fill: #fff}
+    .btn.left{left:12px}
+    .btn.right{right:12px}
+
+    /* Dots */
+    .dots{display:flex;gap:8px;justify-content:center;padding:12px 0}
+    .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.18);cursor:pointer}
+    .dot.active{background:var(--accent)}
+
+    /* Lightbox overlay */
+    .lightbox{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);z-index:60;padding:30px
+    }
+    .lightbox.open{display:flex}
+    .lightbox .carousel{max-width:1200px;width:100%;height:calc(100vh - 120px)}
+    .controls-top{position:absolute;top:18px;left:18px;display:flex;gap:10px;align-items:center}
+    .close-btn{background:transparent;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer}
+
+    /* Make slider responsive */
+    @media (max-width:800px){
+      .slide-inner{height:62vw}
+      .btn{width:40px;height:40px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Infinite Rounded Slider — drag or swipe, click to open lightbox</h2>
+
+    <div id="carousel" class="carousel" aria-roledescription="carousel">
+      <div id="track" class="track">
+        <!-- Slides populated by JS -->
+      </div>
+
+      <button class="btn left" id="prevBtn" aria-label="Previous">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      </button>
+      <button class="btn right" id="nextBtn" aria-label="Next">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+      </button>
+    </div>
+
+    <div id="dots" class="dots" aria-hidden="true"></div>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true">
+    <div class="controls-top">
+      <button class="close-btn" id="closeLightbox">Close</button>
+    </div>
+    <div class="carousel" style="width:90%;max-width:1400px">
+      <div id="lb-track" class="track"></div>
+      <button class="btn left" id="lb-prev" aria-label="Previous">
+        <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      </button>
+      <button class="btn right" id="lb-next" aria-label="Next">
+        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- Configuration & sample images ---
+    const images = [
+      'https://picsum.photos/seed/air1/1600/1000',
+      'https://picsum.photos/seed/air2/1600/1000',
+      'https://picsum.photos/seed/air3/1600/1000',
+      'https://picsum.photos/seed/air4/1600/1000',
+      'https://picsum.photos/seed/air5/1600/1000'
+    ];
+
+    // DOM refs
+    const track = document.getElementById('track');
+    const carousel = document.getElementById('carousel');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const dotsWrap = document.getElementById('dots');
+
+    // Lightbox refs
+    const lightbox = document.getElementById('lightbox');
+    const lbTrack = document.getElementById('lb-track');
+    const closeLightbox = document.getElementById('closeLightbox');
+    const lbPrev = document.getElementById('lb-prev');
+    const lbNext = document.getElementById('lb-next');
+
+    // Utility to create slides
+    function makeSlide(src, idx){
+      const s = document.createElement('div'); s.className='slide';
+      const inner = document.createElement('div'); inner.className='slide-inner';
+      const img = document.createElement('img'); img.src=src; img.alt = `Slide ${idx+1}`;
+      inner.appendChild(img); s.appendChild(inner);
+      // open lightbox on click
+      inner.addEventListener('click', ()=>openLightbox(idx));
+      return s;
+    }
+
+    // Build track with clones for infinite loop
+    let slides = [];
+    function buildCarousel(){
+      track.innerHTML='';
+      // clones strategy: [cloneLast, ...images, cloneFirst]
+      const first = makeSlide(images[0], 0);
+      const last = makeSlide(images[images.length-1], images.length-1);
+      // clone nodes
+      const cloneLast = last.cloneNode(true);
+      const cloneFirst = first.cloneNode(true);
+
+      // push cloneLast, then all real slides, then cloneFirst
+      track.appendChild(cloneLast);
+      images.forEach((src, i)=>track.appendChild(makeSlide(src,i)));
+      track.appendChild(cloneFirst);
+
+      slides = Array.from(track.children);
+
+      // build dots
+      dotsWrap.innerHTML='';
+      images.forEach((_,i)=>{
+        const d = document.createElement('div'); d.className='dot'; d.dataset.i = i; d.addEventListener('click', ()=>goTo(i));
+        dotsWrap.appendChild(d);
+      });
+      updateDots();
+
+      // set starting position
+      index = 1; // because 0 is cloneLast
+      applyTranslate();
+    }
+
+    // Lightbox build (same logic)
+    function buildLightbox(){
+      lbTrack.innerHTML='';
+      const first = makeSlide(images[0], 0);
+      const last = makeSlide(images[images.length-1], images.length-1);
+      const cloneLast = last.cloneNode(true);
+      const cloneFirst = first.cloneNode(true);
+      lbTrack.appendChild(cloneLast);
+      images.forEach((src,i)=>{
+        const s = makeSlide(src,i); // reuse click handler (but in LB it will reopen only)
+        lbTrack.appendChild(s);
+      });
+      lbTrack.appendChild(cloneFirst);
+      lbSlides = Array.from(lbTrack.children);
+      lbIndex = 1; applyLbTranslate(true);
+    }
+
+    // state
+    let index = 1; // position on track children
+    let isDragging = false, startX=0, currentTranslate=0, prevTranslate=0, animationId=0;
+    let slideWidth = 0;
+    let lbIndex = 1, lbSlides = [];
+
+    function applyTranslate(animate=true){
+      if(!animate) track.style.transition='none'; else track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
+      track.style.transform = `translateX(${ -index * 100 }%)`;
+      if(!animate) requestAnimationFrame(()=>{track.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';});
+      updateDots();
+    }
+    function applyLbTranslate(animate=true){
+      if(!animate) lbTrack.style.transition='none'; else lbTrack.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';
+      lbTrack.style.transform = `translateX(${ -lbIndex * 100 }%)`;
+      if(!animate) requestAnimationFrame(()=>{lbTrack.style.transition='transform .35s cubic-bezier(.2,.9,.2,1)';});
+    }
+
+    function updateDots(){
+      const dots = Array.from(dotsWrap.children);
+      dots.forEach(d=>d.classList.remove('active'));
+      // map index to image index: index 1 => 0
+      const imgIndex = (index -1 + images.length) % images.length;
+      if(dots[imgIndex]) dots[imgIndex].classList.add('active');
+    }
+
+    // movement controls
+    function next(){ if(isAnimating) return; index++; applyTranslate(); }
+    function prev(){ if(isAnimating) return; index--; applyTranslate(); }
+
+    let isAnimating=false;
+    track.addEventListener('transitionstart', ()=>{ isAnimating=true; });
+    track.addEventListener('transitionend', ()=>{
+      isAnimating=false;
+      // when hitting clones jump
+      if(index === 0){ // moved to cloneLast -> jump to last real
+        index = images.length;
+        applyTranslate(false);
+      } else if(index === slides.length-1){ // moved to cloneFirst -> jump to first real
+        index = 1;
+        applyTranslate(false);
+      }
+    });
+
+    // lightbox transitions handling
+    lbTrack.addEventListener('transitionend', ()=>{
+      if(lbIndex === 0){ lbIndex = images.length; applyLbTranslate(false); }
+      else if(lbIndex === lbSlides.length-1){ lbIndex = 1; applyLbTranslate(false); }
+    });
+
+    // goTo image by image index (0-based)
+    function goTo(imgIndex){ index = imgIndex + 1; applyTranslate(); }
+
+    // pointer dragging (works for mouse & touch)
+    function pointerDown(e, forLightbox=false){
+      if(forLightbox) {
+        const target = lbTrack;
+        target.style.transition = 'none';
+        isDragging=true; startX = getX(e);
+        prevTranslate = -lbIndex * carousel.clientWidth; // pixels
+        target.setPointerCapture(e.pointerId);
+      } else {
+        track.style.transition='none'; isDragging=true; startX=getX(e); prevTranslate = -index * carousel.clientWidth; e.target.setPointerCapture?.(e.pointerId);
+      }
+    }
+    function pointerMove(e, forLightbox=false){
+      if(!isDragging) return;
+      const x = getX(e);
+      const dx = x - startX;
+      if(forLightbox){ lbTrack.style.transform = `translateX(${ prevTranslate + dx }px)`; }
+      else { track.style.transform = `translateX(${ prevTranslate + dx }px)`; }
+    }
+    function pointerUp(e, forLightbox=false){
+      if(!isDragging) return; isDragging=false;
+      const x = getX(e); const dx = x - startX;
+      const threshold = (carousel.clientWidth || window.innerWidth) * 0.18; // 18% threshold
+      if(forLightbox){
+        if(dx < -threshold) { lbIndex++; }
+        else if(dx > threshold) { lbIndex--; }
+        applyLbTranslate();
+      } else {
+        if(dx < -threshold) { index++; }
+        else if(dx > threshold) { index--; }
+        applyTranslate();
+      }
+    }
+    function getX(e){ return (e.touches ? e.touches[0].clientX : e.clientX) || (e.clientX); }
+
+    // Attach pointer events to track (desktop & touch) for main carousel
+    track.addEventListener('pointerdown', (e)=>pointerDown(e,false));
+    track.addEventListener('pointermove', (e)=>pointerMove(e,false));
+    track.addEventListener('pointerup', (e)=>pointerUp(e,false));
+    track.addEventListener('pointercancel', (e)=>pointerUp(e,false));
+
+    // For lightbox track
+    lbTrack.addEventListener('pointerdown', (e)=>pointerDown(e,true));
+    lbTrack.addEventListener('pointermove', (e)=>pointerMove(e,true));
+    lbTrack.addEventListener('pointerup', (e)=>pointerUp(e,true));
+    lbTrack.addEventListener('pointercancel', (e)=>pointerUp(e,true));
+
+    // Buttons
+    nextBtn.addEventListener('click', ()=>{ index++; applyTranslate(); });
+    prevBtn.addEventListener('click', ()=>{ index--; applyTranslate(); });
+
+    lbNext.addEventListener('click', ()=>{ lbIndex++; applyLbTranslate(); });
+    lbPrev.addEventListener('click', ()=>{ lbIndex--; applyLbTranslate(); });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e)=>{
+      if(lightbox.classList.contains('open')){
+        if(e.key === 'ArrowRight') { lbIndex++; applyLbTranslate(); }
+        if(e.key === 'ArrowLeft') { lbIndex--; applyLbTranslate(); }
+        if(e.key === 'Escape') closeLB();
+      } else {
+        if(e.key === 'ArrowRight') { index++; applyTranslate(); }
+        if(e.key === 'ArrowLeft') { index--; applyTranslate(); }
+      }
+    });
+
+    // Lightbox open/close
+    function openLightbox(imageIndex){
+      buildLightbox();
+      lightbox.classList.add('open');
+      // set lbIndex to selected
+      lbIndex = imageIndex + 1; applyLbTranslate(false);
+      // prevent body scroll
+      document.body.style.overflow='hidden';
+    }
+    function closeLB(){ lightbox.classList.remove('open'); document.body.style.overflow=''; }
+    closeLightbox.addEventListener('click', closeLB);
+    lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) closeLB(); });
+
+    // Initialize everything
+    buildCarousel();
+
+    // Make pointer events work properly on browsers
+    // convert touch events to pointer by using pointer events; ensure elements are focusable for accessibility
+    track.querySelectorAll('.slide-inner').forEach(s=>s.setAttribute('tabindex', '0'));
+
+    // Responsive: recalc width on resize
+    window.addEventListener('resize', ()=>{ applyTranslate(false); applyLbTranslate(false); });
+
+    // expose goTo for debugging
+    window._slider = { goTo };
+  </script>
+</body>
+</html>
